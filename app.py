@@ -37,6 +37,12 @@ elif section == "Stock Analysis":
     start_date = st.date_input("Start Date", today - datetime.timedelta(days=365 * 5))
     end_date = st.date_input("End Date", today)
 
+    # 🧩 Indicator toggles
+    st.subheader("🧩 Select Indicators for Analysis")
+    use_rsi = st.checkbox("Include RSI", value=True)
+    use_ma50 = st.checkbox("Include Moving Average (MA50)", value=True)
+    use_sentiment = st.checkbox("Include News Sentiment", value=True)
+
     if st.button("Run Analysis"):
         with st.spinner("Fetching and analyzing..."):
             try:
@@ -107,6 +113,49 @@ elif section == "Stock Analysis":
                             for r in results:
                                 emoji = "🟢" if r["label"] == "Positive" else "🔴" if r["label"] == "Negative" else "⚪"
                                 st.write(f"{emoji} {r['headline']} ({r['score']})")
+                    # 🔢 Score calculation logic
+                    score = 0
+                    score_explanations = []
+
+                    if use_rsi:
+                        last_rsi = data["RSI"].dropna().iloc[-1]
+                        if last_rsi < 30:
+                            score += 1
+                            score_explanations.append(f"🟢 RSI is low ({last_rsi:.1f}) → possible buy signal")
+                        else:
+                            score_explanations.append(f"⚪ RSI is neutral/high ({last_rsi:.1f})")
+
+                    if use_ma50:
+                        if data['Adj Close'].iloc[-1] > data['MA50'].iloc[-1]:
+                            score += 1
+                            score_explanations.append("🟢 Price is above MA50 → uptrend")
+                        else:
+                            score_explanations.append("🔴 Price is below MA50 → caution")
+
+                    if use_sentiment and headlines:
+                        sentiment_results = analyze_sentiment(headlines)
+                        avg_score, overall_label = summarize_sentiment(sentiment_results)
+                        if avg_score > 0.2:
+                            score += 1
+                            score_explanations.append(f"🟢 News sentiment is positive ({avg_score})")
+                        elif avg_score < -0.2:
+                            score_explanations.append(f"🔴 News sentiment is negative ({avg_score})")
+                        else:
+                            score_explanations.append(f"⚪ News sentiment is neutral ({avg_score})")
+                        # 📊 Show final score
+                        st.subheader("📊 MarketPulse Score Summary")
+                        st.write(f"Total Signal Score: **{score} / 3**")
+
+                        for line in score_explanations:
+                            st.markdown(f"- {line}")
+
+                        if score == 3:
+                            st.success("✅ Strong bullish signal across all selected indicators.")
+                        elif score == 2:
+                            st.info("⚠️ Mixed signals – partial strength.")
+                        elif score <= 1:
+                            st.warning("🔻 Weak or unclear signals – proceed with caution.")
+
 
             except Exception as e:
                 st.error(f"Error: {e}")
@@ -170,21 +219,88 @@ elif section == "Reports":
                 ticker = stock["ticker"]
                 start = stock["start"]
                 end = stock["end"]
+                timeframe = f"{start} to {end}"
+
+                # Fetch data
+                try:
+                    data = yf.download(ticker, start=start, end=end)
+                    data['Return'] = data['Adj Close'].pct_change()
+                    data['RSI'] = 100 - (100 / (1 + data['Return'].rolling(14).mean() / data['Return'].rolling(14).std()))
+                    data['MA50'] = data['Adj Close'].rolling(window=50).mean()
+                except Exception:
+                    st.error(f"Data issue for {ticker}")
+                    continue
+
+                # Save charts
+                try:
+                    import matplotlib.pyplot as plt
+
+                    fig_ma, ax1 = plt.subplots()
+                    data[['Adj Close', 'MA50']].dropna().plot(ax=ax1, title=f"{ticker} MA50")
+                    fig_ma.savefig(f"reports/{ticker}_ma.png")
+
+                    fig_rsi, ax2 = plt.subplots()
+                    data['RSI'].dropna().plot(ax=ax2, title=f"{ticker} RSI")
+                    fig_rsi.savefig(f"reports/{ticker}_rsi.png")
+                except Exception:
+                    pass
+
+                # Sentiment
+                from utils.sentiment_analysis import (
+                    get_yahoo_finance_headlines,
+                    analyze_sentiment,
+                    summarize_sentiment
+                )
                 headlines = get_yahoo_finance_headlines(ticker)
                 if headlines:
                     results = analyze_sentiment(headlines)
                     avg, label = summarize_sentiment(results)
                 else:
-                    avg, label = 0, "Neutral"
+                    results, avg, label = [], 0, "Neutral"
 
-                pdf.add_stock_section(ticker, label, avg)
-                pdf.add_text(f"Timeframe: {start} to {end}")
+                # Scoring model
+                score = 0
+                score_explanations = []
 
+                # RSI
+                try:
+                    last_rsi = data["RSI"].dropna().iloc[-1]
+                    if last_rsi < 30:
+                        score += 1
+                        score_explanations.append(f"🟢 RSI is low ({last_rsi:.1f}) → possible buy signal")
+                    else:
+                        score_explanations.append(f"⚪ RSI is neutral/high ({last_rsi:.1f})")
+                except:
+                    score_explanations.append("⚪ RSI not available")
+
+                # MA50
+                try:
+                    if data['Adj Close'].iloc[-1] > data['MA50'].iloc[-1]:
+                        score += 1
+                        score_explanations.append("🟢 Price is above MA50 → uptrend")
+                    else:
+                        score_explanations.append("🔴 Price is below MA50 → caution")
+                except:
+                    score_explanations.append("⚪ MA50 not available")
+
+                # Sentiment
+                if avg > 0.2:
+                    score += 1
+                    score_explanations.append(f"🟢 News sentiment is positive ({avg})")
+                elif avg < -0.2:
+                    score_explanations.append(f"🔴 News sentiment is negative ({avg})")
+                else:
+                    score_explanations.append(f"⚪ News sentiment is neutral ({avg})")
+
+                # Add to PDF
+                pdf.add_stock_section(ticker, label, avg, timeframe, score, score_explanations)
+
+            # Save & export
             os.makedirs("reports", exist_ok=True)
-            path = "reports/marketpulse_report.pdf"
-            pdf.save(path)
+            report_path = "reports/marketpulse_report.pdf"
+            pdf.save(report_path)
 
-            with open(path, "rb") as f:
+            with open(report_path, "rb") as f:
                 st.download_button("📥 Download PDF", f, file_name="MarketPulse_Report.pdf", mime="application/pdf")
 
         st.subheader("📧 Email Report")
