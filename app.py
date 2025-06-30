@@ -12,6 +12,7 @@ from utils.sentiment_analysis import (
     summarize_sentiment
 )
 
+email = st.secrets["GMAIL_USER"]
 st.set_page_config(page_title="MarketPulse", layout="wide")
 
 def load_landing_animation():
