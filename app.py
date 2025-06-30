@@ -18,74 +18,498 @@ from fpdf import FPDF
 
 # Page config
 st.set_page_config(
-    page_title="MarketPulse - Smart Stock Advisor", 
+    page_title="MarketPulse - Seasonal Stock Advisor", 
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
     page_icon="📊"
 )
 
-# Custom CSS for hip design
+# Custom CSS for hip homepage design with floating animations
 st.markdown("""
 <style>
-    .main > div {
+    /* Global Styles */
+    .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin: 1rem 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
-    .stMetric {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 1rem;
-        border-radius: 10px;
-        backdrop-filter: blur(10px);
-    }
+    /* Hide Streamlit default elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     
-    .stock-card {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 1.5rem;
-        border-radius: 15px;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        margin: 1rem 0;
-    }
-    
-    .floating-stocks {
+    /* Floating Stock Ticker Animation */
+    .floating-container {
         position: fixed;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
         z-index: -1;
         pointer-events: none;
-        overflow: hidden;
     }
     
-    .stock-icon {
+    .floating-ticker {
         position: absolute;
-        font-size: 3rem;
-        animation: float 6s ease-in-out infinite;
-        opacity: 0.3;
+        width: 80px;
+        height: 80px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+        color: white;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.2);
     }
     
-    @keyframes float {
+    /* Floating animations with waterfall effect */
+    @keyframes float1 {
+        0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+        10% { opacity: 0.8; }
+        90% { opacity: 0.8; }
+        100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+    }
+    
+    @keyframes float2 {
+        0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+        15% { opacity: 0.7; }
+        85% { opacity: 0.7; }
+        100% { transform: translateY(-100px) rotate(-360deg); opacity: 0; }
+    }
+    
+    @keyframes float3 {
+        0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+        20% { opacity: 0.6; }
+        80% { opacity: 0.6; }
+        100% { transform: translateY(-100px) rotate(180deg); opacity: 0; }
+    }
+    
+    @keyframes bobbing {
         0%, 100% { transform: translateY(0px); }
         50% { transform: translateY(-20px); }
     }
     
-    .hero-title {
-        font-size: 3rem;
+    .float-1 { animation: float1 15s linear infinite; }
+    .float-2 { animation: float2 18s linear infinite; }
+    .float-3 { animation: float3 20s linear infinite; }
+    .bobbing { animation: bobbing 3s ease-in-out infinite; }
+    
+    /* Header Navigation */
+    .nav-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .logo {
+        font-size: 1.8rem;
         font-weight: bold;
-        background: linear-gradient(45deg, #FF6B6B, #4ECDC4, #45B7D1, #96CEB4);
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .nav-links {
+        display: flex;
+        gap: 2rem;
+        color: white;
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+    
+    .nav-link {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+    }
+    
+    .nav-link:hover {
+        background: rgba(255,255,255,0.2);
+        transform: translateY(-2px);
+    }
+    
+    /* Hero Section */
+    .hero-container {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        padding: 2rem;
+        margin-top: 80px;
+    }
+    
+    .hero-title {
+        font-size: 5rem;
+        font-weight: 900;
+        margin-bottom: 1rem;
+        text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        line-height: 1.1;
+    }
+    
+    .stock-blue {
+        background: linear-gradient(45deg, #4169E1, #1E90FF);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .advisor-yellow {
+        background: linear-gradient(45deg, #FFD700, #FFA500);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .hero-subtitle {
+        font-size: 1.4rem;
+        color: white;
+        margin-bottom: 3rem;
+        max-width: 700px;
+        line-height: 1.6;
+        font-weight: 300;
+    }
+    
+    /* Ticker Input Section */
+    .ticker-input-container {
+        background: rgba(255,255,255,0.15);
+        backdrop-filter: blur(15px);
+        border-radius: 25px;
+        padding: 2.5rem;
+        margin: 2rem 0;
+        border: 1px solid rgba(255,255,255,0.2);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        max-width: 600px;
+        width: 100%;
+    }
+    
+    .ticker-input {
+        width: 100%;
+        padding: 1.2rem;
+        border: none;
+        border-radius: 15px;
+        background: rgba(255,255,255,0.9);
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .analyze-button {
+        background: linear-gradient(45deg, #FFD700, #FFA500);
+        color: #333;
+        border: none;
+        padding: 1.2rem 2.5rem;
+        border-radius: 50px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255,215,0,0.3);
+        width: 100%;
+    }
+    
+    .analyze-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(255,215,0,0.5);
+    }
+    
+    /* Feature Cards */
+    .features-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+        margin: 4rem 0;
+        padding: 0 2rem;
+        max-width: 1200px;
+    }
+    
+    .feature-card {
+        background: rgba(255,255,255,0.12);
+        backdrop-filter: blur(15px);
+        border-radius: 25px;
+        padding: 2.5rem;
         text-align: center;
-        margin-bottom: 2rem;
+        border: 1px solid rgba(255,255,255,0.2);
+        transition: all 0.4s ease;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        background: rgba(255,255,255,0.18);
+    }
+    
+    .feature-icon {
+        font-size: 3.5rem;
+        margin-bottom: 1.5rem;
+        display: block;
+    }
+    
+    .feature-title {
+        font-size: 1.6rem;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    
+    .feature-description {
+        color: rgba(255,255,255,0.85);
+        line-height: 1.6;
+        font-size: 1rem;
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 1.5rem;
+        justify-content: center;
+        margin: 4rem 0;
+        flex-wrap: wrap;
+    }
+    
+    .action-btn {
+        padding: 1.2rem 2.5rem;
+        border-radius: 50px;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        font-size: 1.1rem;
+        min-width: 180px;
+    }
+    
+    .btn-orange {
+        background: linear-gradient(45deg, #FF6B35, #F7931E);
+        color: white;
+    }
+    
+    .btn-blue {
+        background: linear-gradient(45deg, #4A90E2, #357ABD);
+        color: white;
+    }
+    
+    .btn-yellow {
+        background: linear-gradient(45deg, #FFD700, #FFA500);
+        color: #333;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    }
+    
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: rgba(255,255,255,0.7);
+        font-size: 1rem;
+        margin-top: 4rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .hero-title {
+            font-size: 3rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.2rem;
+        }
+        
+        .nav-links {
+            display: none;
+        }
+        
+        .floating-ticker {
+            width: 60px;
+            height: 60px;
+            font-size: 12px;
+        }
+        
+        .features-container {
+            grid-template-columns: 1fr;
+            padding: 0 1rem;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+    
+    /* Streamlit specific overrides */
+    .main .block-container {
+        padding: 0 !important;
+        max-width: none !important;
+    }
+    
+    .stSelectbox, .stTextInput, .stButton {
+        z-index: 1000;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Utility Functions
+
+def create_floating_tickers():
+    """Generate floating stock ticker animations with waterfall effect"""
+    tickers = [
+        {"symbol": "TSLA", "color": "#DC2626", "left": 5, "delay": 0},
+        {"symbol": "AMZN", "color": "#FF9500", "left": 15, "delay": 2},
+        {"symbol": "GOOGL", "color": "#4285F4", "left": 25, "delay": 4},
+        {"symbol": "MSFT", "color": "#00BCF2", "left": 35, "delay": 1},
+        {"symbol": "NFLX", "color": "#E50914", "left": 45, "delay": 3},
+        {"symbol": "COIN", "color": "#0052FF", "left": 55, "delay": 5},
+        {"symbol": "SPY", "color": "#1DB954", "left": 65, "delay": 2.5},
+        {"symbol": "DIS", "color": "#113CCF", "left": 75, "delay": 4.5},
+        {"symbol": "AMD", "color": "#ED1C24", "left": 85, "delay": 1.5},
+        {"symbol": "NVDA", "color": "#76B900", "left": 95, "delay": 3.5},
+        {"symbol": "AAPL", "color": "#007AFF", "left": 10, "delay": 6},
+        {"symbol": "META", "color": "#1877F2", "left": 20, "delay": 7},
+        {"symbol": "UBER", "color": "#000000", "left": 30, "delay": 8},
+        {"symbol": "SNAP", "color": "#FFFC00", "left": 40, "delay": 9},
+        {"symbol": "TWTR", "color": "#1DA1F2", "left": 50, "delay": 10},
+        {"symbol": "ZOOM", "color": "#2D8CFF", "left": 60, "delay": 11},
+        {"symbol": "SHOP", "color": "#95BF47", "left": 70, "delay": 12},
+        {"symbol": "SQ", "color": "#3E4348", "left": 80, "delay": 13},
+        {"symbol": "PYPL", "color": "#009CDE", "left": 90, "delay": 14},
+        {"symbol": "ROKU", "color": "#662D91", "left": 8, "delay": 15},
+    ]
+    
+    floating_html = '<div class="floating-container">'
+    
+    # Create multiple layers for full coverage
+    for layer in range(3):
+        for i, ticker in enumerate(tickers):
+            animation_class = f"float-{(i % 3) + 1}"
+            left_offset = (layer * 2) % 8  # Slight horizontal offset per layer
+            delay_offset = layer * 5  # Stagger layers
+            
+            floating_html += f'''
+            <div class="floating-ticker {animation_class}" 
+                 style="left: {(ticker['left'] + left_offset) % 100}%; 
+                        background: {ticker['color']}; 
+                        animation-delay: {ticker['delay'] + delay_offset}s;
+                        opacity: {0.3 + (layer * 0.1)};">
+                {ticker['symbol']}
+            </div>
+            '''
+    
+    floating_html += '</div>'
+    return floating_html
+
+
+def create_homepage():
+    """Create the MarketPulse homepage with floating animations"""
+    
+    # Add floating tickers
+    st.markdown(create_floating_tickers(), unsafe_allow_html=True)
+    
+    # Navigation
+    nav_html = '''
+    <div class="nav-container">
+        <div class="logo">
+            📊 MarketPulse
+        </div>
+        <div class="nav-links">
+            <span class="nav-link">Dashboard</span>
+            <span class="nav-link">Analysis</span>
+            <span class="nav-link">Portfolio</span>
+            <span class="nav-link">Reports</span>
+        </div>
+    </div>
+    '''
+    st.markdown(nav_html, unsafe_allow_html=True)
+    
+    # Hero Section
+    hero_html = '''
+    <div class="hero-container">
+        <h1 class="hero-title">
+            <span class="stock-blue">Seasonal Stock</span> <span class="advisor-yellow">Advisor</span>
+        </h1>
+        <p class="hero-subtitle">
+            Harness the power of social sentiment analysis and comprehensive stock patterns 
+            to build a perfect portfolio with optimal timing models.
+        </p>
+        
+        <div class="ticker-input-container">
+            <input type="text" class="ticker-input" placeholder="Enter stock tickers (e.g., AAPL, GOOGL, TSLA)" id="ticker-input">
+            <button class="analyze-button" onclick="analyzeStocks()">Analyze Now</button>
+        </div>
+    </div>
+    '''
+    st.markdown(hero_html, unsafe_allow_html=True)
+    
+    # Feature Cards
+    features_html = '''
+    <div class="features-container">
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">Technical Analysis</div>
+            <div class="feature-description">
+                Advanced charting with RSI, moving averages, MACD, Bollinger Bands, and 20+ comprehensive technical indicators for precise market analysis.
+            </div>
+        </div>
+        
+        <div class="feature-card">
+            <div class="feature-icon">🧠</div>
+            <div class="feature-title">Sentiment Analysis</div>
+            <div class="feature-description">
+                Real-time social media and news sentiment tracking using AI-powered natural language processing to gauge market emotions.
+            </div>
+        </div>
+        
+        <div class="feature-card">
+            <div class="feature-icon">⏰</div>
+            <div class="feature-title">Timing Models</div>
+            <div class="feature-description">
+                Seasonal patterns and optimal entry/exit points based on historical data analysis and machine learning algorithms.
+            </div>
+        </div>
+    </div>
+    '''
+    st.markdown(features_html, unsafe_allow_html=True)
+    
+    # Action Buttons
+    action_buttons_html = '''
+    <div class="action-buttons">
+        <button class="action-btn btn-orange">Build Portfolio</button>
+        <button class="action-btn btn-blue">Download Report</button>
+        <button class="action-btn btn-yellow">Save Analysis</button>
+    </div>
+    '''
+    st.markdown(action_buttons_html, unsafe_allow_html=True)
+    
+    # Footer
+    footer_html = '''
+    <div class="footer">
+        <strong>Powered by advanced algorithms + real-time data + professional insights</strong>
+    </div>
+    '''
+    st.markdown(footer_html, unsafe_allow_html=True)
+
+
+# Utility Functions (keeping your existing functions)
 def get_yahoo_finance_headlines(ticker):
     """Get headlines from Yahoo Finance"""
     try:
@@ -106,6 +530,7 @@ def get_yahoo_finance_headlines(ticker):
     except Exception as e:
         st.error(f"Error fetching Yahoo headlines: {e}")
         return []
+
 
 def analyze_sentiment(headlines):
     """Analyze sentiment of headlines"""
@@ -131,6 +556,7 @@ def analyze_sentiment(headlines):
     
     return results
 
+
 def summarize_sentiment(results):
     """Summarize overall sentiment"""
     if not results:
@@ -146,6 +572,7 @@ def summarize_sentiment(results):
         label = "Neutral"
     
     return avg_score, label
+
 
 def calculate_technical_indicators(data):
     """Calculate comprehensive technical indicators"""
@@ -184,25 +611,6 @@ def calculate_technical_indicators(data):
     
     return data
 
-def create_floating_animation():
-    """Create floating stock icons animation"""
-    stock_symbols = ['📈', '💹', '📊', '💰', '🏢', '📉', '💲', '🎯', '📋', '💸']
-    
-    animation_html = """
-    <div class="floating-stocks">
-    """
-    
-    for i, symbol in enumerate(stock_symbols):
-        left = (i * 10) % 90
-        delay = i * 0.5
-        animation_html += f"""
-        <div class="stock-icon" style="left: {left}%; animation-delay: {delay}s;">
-            {symbol}
-        </div>
-        """
-    
-    animation_html += "</div>"
-    return animation_html
 
 class PDFReport(FPDF):
     def __init__(self):
@@ -229,6 +637,7 @@ class PDFReport(FPDF):
         self.cell(0, 8, f'RSI: {rsi:.2f}', 0, 1)
         self.cell(0, 8, f'Recommendation: {recommendation}', 0, 1)
         self.ln(5)
+
 
 def send_email_report(sender_email, app_password, recipient_email, report_path):
     """Send report via email"""
@@ -275,61 +684,52 @@ def send_email_report(sender_email, app_password, recipient_email, report_path):
     except Exception as e:
         raise Exception(f"Email failed: {str(e)}")
 
+
 # Initialize session state
 if "portfolio" not in st.session_state:
     st.session_state.portfolio = []
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "home"
 
-# Sidebar Navigation
-st.sidebar.markdown("## 📊 MarketPulse Navigation")
-st.sidebar.markdown("*Smart Stock Advisor with AI*")
-section = st.sidebar.radio(
-    "Navigate to:",
-    ["🏠 Home", "📈 Stock Analysis", "📁 Portfolio Builder", "📄 Reports & Analytics"],
-    key="navigation"
-)
+# Check if we're on the homepage
+if st.session_state.current_page == "home":
+    create_homepage()
+    
+    # Add JavaScript for button functionality
+    st.markdown("""
+    <script>
+    function analyzeStocks() {
+        // This would integrate with Streamlit's session state
+        alert('Analysis functionality would be implemented here!');
+    }
+    </script>
+    """, unsafe_allow_html=True)
 
-# HOME SECTION
-if section == "🏠 Home":
-    # Floating animation background
-    st.markdown(create_floating_animation(), unsafe_allow_html=True)
-    
-    st.markdown('<h1 class="hero-title">MarketPulse</h1>', unsafe_allow_html=True)
-    st.markdown("### 🎯 *Your AI-Powered Stock Timing Advisor*")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        <div class="stock-card">
-            <h3>📊 Smart Analysis</h3>
-            <p>Advanced technical indicators combined with sentiment analysis from news and social media</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="stock-card">
-            <h3>🎯 Perfect Timing</h3>
-            <p>Seasonal patterns and historical data help identify optimal entry and exit points</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class="stock-card">
-            <h3>📈 Portfolio Power</h3>
-            <p>Build, analyze, and export comprehensive portfolios with detailed reports</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("### 🚀 Get Started")
-    st.markdown("1. **Analyze** individual stocks with our comprehensive toolkit")
-    st.markdown("2. **Build** your portfolio with data-driven selections")
-    st.markdown("3. **Export** detailed reports and analysis")
+# Navigation logic (simplified for demo)
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    if st.button("🏠 Home", key="nav_home"):
+        st.session_state.current_page = "home"
+        st.experimental_rerun()
+
+with col2:
+    if st.button("📈 Analysis", key="nav_analysis"):
+        st.session_state.current_page = "analysis"
+        st.experimental_rerun()
+
+with col3:
+    if st.button("📁 Portfolio", key="nav_portfolio"):
+        st.session_state.current_page = "portfolio"
+        st.experimental_rerun()
+
+with col4:
+    if st.button("📄 Reports", key="nav_reports"):
+        st.session_state.current_page = "reports"
+        st.experimental_rerun()
 
 # STOCK ANALYSIS SECTION
-elif section == "📈 Stock Analysis":
+if st.session_state.current_page == "analysis":
     st.title("📈 Comprehensive Stock Analysis")
     
     col1, col2 = st.columns([2, 1])
@@ -482,7 +882,7 @@ elif section == "📈 Stock Analysis":
                 st.error(f"❌ Analysis failed: {str(e)}")
 
 # PORTFOLIO SECTION
-elif section == "📁 Portfolio Builder":
+elif st.session_state.current_page == "portfolio":
     st.title("📁 Smart Portfolio Builder")
     
     col1, col2 = st.columns([2, 1])
@@ -590,7 +990,7 @@ elif section == "📁 Portfolio Builder":
         st.info("📝 Your portfolio is empty. Add some stocks to get started!")
 
 # REPORTS SECTION
-elif section == "📄 Reports & Analytics":
+elif st.session_state.current_page == "reports":
     st.title("📄 Comprehensive Reports & Analytics")
     
     if not st.session_state.portfolio:
@@ -712,8 +1112,3 @@ elif section == "📄 Reports & Analytics":
                     st.error(f"❌ Email failed: {str(e)}")
             else:
                 st.warning("⚠️ Please fill in all email fields")
-
-# Footer
-st.markdown("---")
-st.markdown("### 🚀 MarketPulse - Powered by AI & Data Science")
-st.markdown("*Making smart investment decisions through comprehensive analysis*")
